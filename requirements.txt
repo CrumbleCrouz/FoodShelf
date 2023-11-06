@@ -1,0 +1,3 @@
+keyboard~=0.13.5
+msvcrt~=1.1.0
+os-sys~=3.4.0
