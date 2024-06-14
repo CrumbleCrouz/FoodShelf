@@ -41,7 +41,6 @@ class FoodShelf:
         try:
             f = open(file=self.file_path, encoding="UTF-8")
             brut_data = [v.rstrip("\n").split(',') for v in f.readlines()]
-            print("br:", brut_data)
             for v in brut_data:
                 if v[0] != '':
                     if v[2].strip(' ') == "food":
@@ -162,7 +161,7 @@ class FoodShelf:
         self.pressing = False
         if len(current_elm_list) == 1 and current_elm_list[0][0] == "vide":  # If the inventory is empty
             print("\033[H\033[J", end="")
-            print(f"Il n'y a rien à {"manger" if type == "food" else "boire"} !")
+            print(f"Il n'y a rien à {'manger' if type == 'food' else 'boire'} !")
             print("Appuyez sur backspace pour continuer...")
             kb.wait("backspace")
             msvcrt.getch()
@@ -200,11 +199,11 @@ class FoodShelf:
         food = current_elm_list[ind][0]
         time.sleep(0.5)
         print("\033[H\033[J", end="")
-        a = str(input(f"Voulez vous {"manger" if type == "food" else "boire"} {food} ? (y/n)"))
+        a = str(input(f"Voulez vous {'manger' if type == 'food' else 'boire'} {food} ? (y/n)"))
         if a.lower() in ["y", "yes", "o" "oui"]:
             current_elm_list[ind][1] -= 1
             self.save_db(self.file_path)
-            print(f"Vous avez {"mangé" if type == "food" else "bu"} {food}")
+            print(f"Vous avez {'mangé' if type == 'food' else 'bu'} {food}")
             if type == "food":
                 self.food_list = current_elm_list.copy()
             else:
@@ -279,8 +278,6 @@ class FoodShelf:
             self.drink_list = [["vide", 0, "drink"]]
 
         f_elements_list = self.food_list + self.drink_list
-        print("fe:", f_elements_list)
-
         for i in range(len(f_elements_list)):
             f.write(
                 f"{[f_elements_list[i][0], f_elements_list[i][1], f_elements_list[i][2]]}"
@@ -303,7 +300,6 @@ class FoodShelf:
     def two_cols_table(self, select: int, type: str, add_btn: bool = True):
         current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
 
-        print("current_list:", current_elm_list)
         max_value_c1 = (max(*([len(str(val[0])) for val in current_elm_list])) + 2) if len(current_elm_list) > 1 else (
                     len(str(current_elm_list[0][0])) + 2)
         max_value_c2 = (max(*([len(str(val[1])) for val in current_elm_list])) + 1) if len(current_elm_list) > 1 else (
