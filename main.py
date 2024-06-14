@@ -1,8 +1,11 @@
-import msvcrt
+# Internal modules
 import os
-import random
 import sys
 import time
+import random
+
+# External modules
+import msvcrt
 import keyboard as kb
 
 running = True
@@ -23,45 +26,49 @@ class FoodShelf:
     }
 
     def __init__(self, file: str):
-        self.menu = ["Manger", "Stock", "Fermer"]
+        self.menu = ["Manger", "Boire", "Stock nourriture", "Stock boisson", "Fermer"]
         self.pressing = False
         self.file_path = file
         self.food_list = []
-        self.values_list = []
-        self.inv = {}
+        self.drink_list = []
+        self.food_values_list = []
+        self.drink_values_list = []
 
         self.load_db()
-        self.refresh_list()
         self.cli()
 
     def load_db(self):
         try:
             f = open(file=self.file_path, encoding="UTF-8")
             brut_data = [v.rstrip("\n").split(',') for v in f.readlines()]
-            self.inv = {v[0]: int(v[1]) for v in brut_data if v[0] != ''}
+            print("br:", brut_data)
+            for v in brut_data:
+                if v[0] != '':
+                    if v[2].strip(' ') == "food":
+                        self.food_list += [[v[0].strip(' '), int(v[1]), v[2].strip(' ')]]
+                    if v[2].strip(' ') == "drink":
+                        self.drink_list += [[v[0].strip(' '), int(v[1]), v[2].strip(' ')]]
             f.close()
             self.save_db(self.file_path, speak=False)
         except FileNotFoundError:
-            self.inv = {"vide": 0}
+            self.food_list = [["vide", 0, "food"]]
+            self.drink_list = [["vide", 0, "drink"]]
             print("Une erreur est survenue : le fichier de base de données n'a pas été trouvé. Un nouveau a été créé.")
-            input()
+            print("Appuyez sur backspace pour continuer...")
+            kb.wait("backspace")
             self.save_db(self.file_path, speak=False)
         except Exception as err:
             print(f"Une erreur est survenue avec la base de données : {err}")
             print("Appuyez sur backspace pour continuer...")
             kb.wait("backspace")
 
-    def refresh_list(self):
-        self.food_list = [v for v in self.inv.keys()]
-        self.values_list = [v for v in self.inv.values()]
-
-    def stock_menu(self):
+    def stock_menu(self, type: str):
         self.pressing = False
 
+        current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
         i = 0
         editing_flag = False
-
-        self.two_cols_table(i)
+        self.two_cols_table(i, type=type)
         # Stock menu loop
         while True:
             key = kb.read_event()
@@ -71,51 +78,60 @@ class FoodShelf:
             if key.scan_code == 72 and not key.is_keypad:  # UP ARROW
                 if not self.pressing:
                     self.pressing = True
-                    i = i - 1 if i > 0 else len(self.food_list)
-                    self.two_cols_table(i)
+                    i = i - 1 if i > 0 else len(current_elm_list)
+                    self.save_db(self.file_path, speak=False)
+                    current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                    self.two_cols_table(i, type=type)
                     editing_flag = False
+
             elif key.scan_code == 80 and not key.is_keypad:  # DOWN ARROW
                 if not self.pressing:
                     self.pressing = True
-                    i = i + 1 if i < len(self.food_list) else 0
-                    self.two_cols_table(i)
+                    i = i + 1 if i < len(current_elm_list) else 0
+                    self.save_db(self.file_path, speak=False)
+                    current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                    self.two_cols_table(i, type=type)
                     editing_flag = False
+
             elif key.scan_code == 75 and not key.is_keypad:  # LEFT ARROW
-                if not self.pressing and i != len(self.food_list):
+                if not self.pressing and i != len(current_elm_list):
                     self.pressing = True
-                    if self.values_list[i] > 0:
-                        self.values_list[i] -= 1
-                        self.two_cols_table(i)
-                        self.inv = {self.food_list[i]: self.values_list[i] for i in range(len(self.food_list))}
+                    if current_elm_list[i][1] > 0:
+                        current_elm_list[i][1] -= 1
                         self.save_db(self.file_path, speak=False)
+                        current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                        self.two_cols_table(i, type=type)
                         editing_flag = False
+
             elif key.scan_code == 77 and not key.is_keypad:  # RIGHT ARROW
-                if not self.pressing and i != len(self.food_list):
+                if not self.pressing and i != len(current_elm_list):
                     self.pressing = True
-                    self.values_list[i] += 1
-                    self.two_cols_table(i)
-                    self.inv = {self.food_list[i]: self.values_list[i] for i in range(len(self.food_list))}
+                    current_elm_list[i][1] += 1
                     self.save_db(self.file_path, speak=False)
+                    current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                    self.two_cols_table(i, type=type)
                     editing_flag = False
+
             elif key.scan_code == 14:  # BACKSPACE
-                if not self.pressing and i != len(self.food_list):
+                if not self.pressing and i != len(current_elm_list):
                     self.pressing = True
-                    self.values_list[i] = 0
-                    self.two_cols_table(i)
-                    self.inv = {self.food_list[i]: self.values_list[i] for i in range(len(self.food_list))}
+                    current_elm_list[i][1] = int(current_elm_list[i][1] / 10)
                     self.save_db(self.file_path, speak=False)
+                    current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                    self.two_cols_table(i, type=type)
                     editing_flag = False
+
             # Supports direct number input
             if key.scan_code in self.digits_key_hashmap.keys():
-                if not self.pressing and i != len(self.food_list):
+                if not self.pressing and i != len(current_elm_list):
                     self.pressing = True
-                    self.values_list[i] = self.values_list[i] * 10 + self.digits_key_hashmap[
-                        key.scan_code] if editing_flag else \
-                        self.digits_key_hashmap[key.scan_code]
+                    current_elm_list[i][1] = current_elm_list[i][1] * 10 + self.digits_key_hashmap[
+                        key.scan_code] if editing_flag else self.digits_key_hashmap[key.scan_code]
                     editing_flag = True
-                    self.two_cols_table(i)
-                    self.inv = {self.food_list[i]: self.values_list[i] for i in range(len(self.food_list))}
                     self.save_db(self.file_path, speak=False)
+                    current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                    self.two_cols_table(i, type=type)
+
             elif key.scan_code == 28:  # ENTER
                 if not self.pressing:
                     self.pressing = True
@@ -123,9 +139,10 @@ class FoodShelf:
                     while kb.is_pressed("enter"):
                         continue
                     clear_stdin()
-                    if i == len(self.food_list):
-                        self.add_food()
-                        self.two_cols_table(i)
+                    if i == len(current_elm_list):
+                        self.add_food(type)
+                        current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+                        self.two_cols_table(i, type=type)
             elif key.scan_code == 1:  # ESCAPE
                 if not self.pressing:
                     self.pressing = True
@@ -133,13 +150,19 @@ class FoodShelf:
                     break
             else:
                 self.pressing = False
+            if type == "food":
+                self.food_list = current_elm_list.copy()
+            else:
+                self.drink_list = current_elm_list.copy()
 
-    def hungry(self):
+    def hungry(self, type: str):
+        current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+
         # Initial display
         self.pressing = False
-        if len(self.inv) == 1 and 'vide' in list(self.inv.keys()):  # If the inventory is empty
+        if len(current_elm_list) == 1 and current_elm_list[0][0] == "vide":  # If the inventory is empty
             print("\033[H\033[J", end="")
-            print("Il n'y a rien à manger !")
+            print(f"Il n'y a rien à {"manger" if type == "food" else "boire"} !")
             print("Appuyez sur backspace pour continuer...")
             kb.wait("backspace")
             msvcrt.getch()
@@ -150,7 +173,7 @@ class FoodShelf:
         slowing_down_rate = random.uniform(0.05, 0.1)
 
         # Arrow position
-        ind = random.uniform(0, len(self.food_list) - 1)
+        ind = random.uniform(0, len(current_elm_list) - 1)
 
         # Arrow animation
         while speed > slowing_down_rate:
@@ -161,27 +184,31 @@ class FoodShelf:
             else:
                 self.pressing = False
 
-            if int(ind) >= len(self.food_list) - 1:
+            if int(ind) >= len(current_elm_list) - 1:
                 ind = 0
             else:
                 ind += speed
 
             speed = speed - slowing_down_rate if speed > slowing_down_rate else slowing_down_rate
-            self.two_cols_table(int(ind), add_btn=False)
+            self.two_cols_table(int(ind), type, add_btn=False)
 
             # Sleep for 50ms
             time.sleep(0.05)
 
         # Food selection
         ind = int(ind)
-        food = self.food_list[ind]
+        food = current_elm_list[ind][0]
         time.sleep(0.5)
         print("\033[H\033[J", end="")
-        a = str(input(f"Voulez vous manger {food} ? (y/n) "))
-        if a.lower() in ["y", "yes"]:
-            self.inv[food] -= 1
+        a = str(input(f"Voulez vous {"manger" if type == "food" else "boire"} {food} ? (y/n)"))
+        if a.lower() in ["y", "yes", "o" "oui"]:
+            current_elm_list[ind][1] -= 1
             self.save_db(self.file_path)
-            print(f"Vous avez mangé {food}")
+            print(f"Vous avez {"mangé" if type == "food" else "bu"} {food}")
+            if type == "food":
+                self.food_list = current_elm_list.copy()
+            else:
+                self.drink_list = current_elm_list.copy()
         else:
             print("Une prochaine fois !")
 
@@ -189,18 +216,27 @@ class FoodShelf:
         clear_stdin()
         self.pressing = True
 
-    def add_food(self):
-        new_food = str(input("Que voulez-vous ajouter ? ")).lower()
+    def add_food(self, type: str):
+        current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+        new_food = str(input("Que voulez-vous ajouter ? ")).lower().strip(' ')
         while True:
-            c = str(input("Combien en stock ? "))
             try:
+                c = str(input("Combien en stock ? "))
                 c = int(c)
-                if new_food in list(self.inv.keys()):
-                    self.inv[new_food] += c
+                added = False
+                for i in range(len(current_elm_list)):
+                    if current_elm_list[i][0] == new_food:
+                        current_elm_list[i][1] += c
+                        added = True
+                if not added:
+                    current_elm_list.append([new_food, c, type])
+
+                if type == "food":
+                    self.food_list = current_elm_list.copy()
                 else:
-                    self.inv[new_food] = c
+                    self.drink_list = current_elm_list.copy()
                 self.save_db(self.file_path)
-                break
+                return
             except ValueError:
                 print("Entrez un nombre entier !")
                 continue
@@ -208,29 +244,50 @@ class FoodShelf:
     def save_db(self, filename: str, speak=True):
         f = open(filename, 'w', encoding="UTF-8")
 
-        for k in list(self.inv.keys()):
-            if self.inv[k] < 1:
-                self.inv.pop(k)
+        # Delete food if is empty
+        ind = 0
+        for _ in range(len(self.food_list)):
+            if int(self.food_list[ind][1]) < 1:
+                self.food_list.pop(ind)
+            else:
+                ind += 1
+        ind = 0
+        for _ in range(len(self.drink_list)):
+            if int(self.drink_list[ind][1]) < 1:
+                self.drink_list.pop(ind)
+            else:
+                ind += 1
 
-        for k in self.inv.keys():
-            if k == 'vide':
-                if len(self.inv) == 1:
-                    self.inv[k] = 0
+        # Delete the default value if the db is not enough empty
+        for i in range(len(self.food_list)):
+            if self.food_list[i][0] == "vide":
+                if len(self.food_list) == 1:
+                    self.food_list.pop(i)
                 else:
-                    self.inv.pop(k)
+                    self.food_list[i][1] = 0
+        for i in range(len(self.drink_list)):
+            if self.drink_list[i][0] == "vide":
+                if len(self.drink_list) == 1:
+                    self.drink_list.pop(i)
+                else:
+                    self.drink_list[i][0] = 0
 
+        # Creating the default value if the db is empty
+        if len(self.food_list) == 0:
+            self.food_list = [["vide", 0, "food"]]
+        if len(self.drink_list) == 0:
+            self.drink_list = [["vide", 0, "drink"]]
 
-        if len(self.inv) == 0:
-            self.inv["vide"] = 0
+        f_elements_list = self.food_list + self.drink_list
+        print("fe:", f_elements_list)
 
-        for i in range(len(self.inv)):
+        for i in range(len(f_elements_list)):
             f.write(
-                f"{[list(self.inv.keys())[i], list(self.inv.values())[i]]}"
+                f"{[f_elements_list[i][0], f_elements_list[i][1], f_elements_list[i][2]]}"
                 .translate(str.maketrans("", "", "[]'\""))
                 + "\n"
             )
         f.close()
-        self.refresh_list()
         if speak:
             print("\033[H\033[J", end="")
             print(f"Le stock a été actualisé")
@@ -243,27 +300,33 @@ class FoodShelf:
             print(f"|{self.menu[i].center(max_value_l1)}|" + (" <-" if i == select else ""))
         print(f"\\{'-' * max_value_l1}/")  # Footer
 
-    def two_cols_table(self, select=0, add_btn=True):
-        max_value_l1 = (max(*([len(str(val)) for val in self.food_list])) + 2) if len(self.food_list) > 1 else (len(str(self.food_list[0])) + 2)
-        max_value_l2 = (max(*([len(str(val)) for val in self.values_list])) + 1) if len(self.food_list) > 1 else (len(str(self.values_list[0])) + 1)
+    def two_cols_table(self, select: int, type: str, add_btn: bool = True):
+        current_elm_list = self.food_list.copy() if type == "food" else self.drink_list.copy()
+
+        print("current_list:", current_elm_list)
+        max_value_c1 = (max(*([len(str(val[0])) for val in current_elm_list])) + 2) if len(current_elm_list) > 1 else (
+                    len(str(current_elm_list[0][0])) + 2)
+        max_value_c2 = (max(*([len(str(val[1])) for val in current_elm_list])) + 1) if len(current_elm_list) > 1 else (
+                    len(str(current_elm_list[0][1])) + 1)
 
         print("\033[H\033[J", end="")
-        width = (max_value_l1 + max_value_l2 + 1) if (max_value_l1 + max_value_l2 + 1) >= 9 else 9
+        width = (max_value_c1 + max_value_c2 + 1) if (max_value_c1 + max_value_c2 + 1) >= 9 else 9
 
-        print(f"/{'-' * width }\\")  # Header
-        for i in range(len(self.food_list)):  # Content
-            print(f"|{str(self.food_list[i]).center(width - max_value_l2 - 1)}|{str(self.values_list[i]).rjust(max_value_l2)}|" + (
-                " <-" if i == select else ""))
+        print(f"/{'-' * width}\\")  # Header
+        for i in range(len(current_elm_list)):  # Content
+            print(
+                f"|{str(current_elm_list[i][0]).center(width - max_value_c2 - 1)}|{str(current_elm_list[i][1]).rjust(max_value_c2)}|" + (
+                    " <-" if i == select else ""))
         if add_btn:
             print(f"|{'-' * width}|")
-            print(f"|{'Ajouter'.center(width)}|" + (" <-" if select == len(self.food_list) else ""))
+            print(f"|{'Ajouter'.center(width)}|" + (" <-" if select == len(current_elm_list) else ""))
         print(f"\\{'-' * width}/")  # Footer
 
     def cli(self):
         ind = 0
 
         # Initial display
-        # print("\033[H\033[J", end="")
+        print("\033[H\033[J", end="")
         self.one_col_table(ind)
 
         while True:
@@ -295,10 +358,14 @@ class FoodShelf:
                     clear_stdin()
                     match ind:
                         case 0:
-                            self.hungry()
+                            self.hungry("food")
                         case 1:
-                            self.stock_menu()
+                            self.hungry("drink")
                         case 2:
+                            self.stock_menu("food")
+                        case 3:
+                            self.stock_menu("drink")
+                        case 4:
                             running = False
                             break
                     print("\033[H\033[J", end="")
@@ -315,11 +382,10 @@ def clear_stdin():
 
 def start():
     while running:
-         try:
-             clear_stdin()
-             FoodShelf(os.path.realpath(os.path.dirname(sys.argv[0])) + "\\food_db.csv")
-
-         except Exception as err:
+        try:
+            clear_stdin()
+            FoodShelf(os.path.realpath(os.path.dirname(sys.argv[0])) + "\\food_db.csv")
+        except Exception as err:
             print(f"Une erreur est survenue : {err}")
             print("Appuyez sur backspace pour redémarrer le programme...")
             kb.wait("backspace")
